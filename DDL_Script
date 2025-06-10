@@ -1,0 +1,145 @@
+
+CREATE TABLE com_famj_Products (
+  ID NVARCHAR(36) NOT NULL,
+  Name NVARCHAR(255),
+  Description NVARCHAR(255) NOT NULL,
+  ImageUrl NVARCHAR(255),
+  ReleaseDate DATETIME_TEXT DEFAULT CURRENT_TIMESTAMP,
+  DiscontinuedDate DATETIME_TEXT,
+  Price DECIMAL(16, 2),
+  Height DECIMAL(16, 2),
+  Width DECIMAL(16, 2),
+  Depth DECIMAL(16, 2),
+  Quantity DECIMAL(16, 2),
+  Supplier_Id NVARCHAR(36),
+  PriceCondition NVARCHAR(2),
+  PriceDetermination NVARCHAR(3),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_Suppliers (
+  ID NVARCHAR(36) NOT NULL,
+  Name NVARCHAR(255),
+  Address_Street NVARCHAR(255),
+  Address_City NVARCHAR(255),
+  Address_State NVARCHAR(2),
+  Address_PostalCode NVARCHAR(5),
+  Address_Country NVARCHAR(3),
+  Email NVARCHAR(255),
+  Phone NVARCHAR(255),
+  Fax NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_Categories (
+  ID NVARCHAR(1) NOT NULL,
+  Name NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_StockAvailability (
+  ID INTEGER NOT NULL,
+  Description NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_Currencies (
+  ID NVARCHAR(3) NOT NULL,
+  Description NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_UnitOfMeasures (
+  ID NVARCHAR(2) NOT NULL,
+  Description NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_DimensionUnit (
+  ID NVARCHAR(2) NOT NULL,
+  Description NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_Months (
+  ID NVARCHAR(2) NOT NULL,
+  Description NVARCHAR(255),
+  ShortDescription NVARCHAR(3),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_ProductReviews (
+  Name NVARCHAR(255) NOT NULL,
+  Rating INTEGER,
+  Comment NVARCHAR(255),
+  PRIMARY KEY(Name)
+);
+
+CREATE TABLE com_famj_SalesData (
+  ID NVARCHAR(36) NOT NULL,
+  DeliveryDate DATETIME_TEXT,
+  Revenue DECIMAL(16, 2),
+  PRIMARY KEY(ID)
+);
+
+CREATE TABLE com_famj_car (
+  ID NVARCHAR(36) NOT NULL,
+  Name NVARCHAR(255),
+  PRIMARY KEY(ID)
+);
+
+CREATE VIEW com_famj_SelProducts AS SELECT
+  Products_0.ID,
+  Products_0.Name,
+  Products_0.Description,
+  Products_0.ImageUrl,
+  Products_0.ReleaseDate,
+  Products_0.DiscontinuedDate,
+  Products_0.Price,
+  Products_0.Height,
+  Products_0.Width,
+  Products_0.Depth,
+  Products_0.Quantity,
+  Products_0.Supplier_Id,
+  Products_0.PriceCondition,
+  Products_0.PriceDetermination
+FROM com_famj_Products AS Products_0;
+
+CREATE VIEW com_famj_SelProducts01 AS SELECT
+  Products_0.Name,
+  Products_0.Description,
+  Products_0.Quantity,
+  Products_0.Price
+FROM com_famj_Products AS Products_0;
+
+CREATE VIEW com_famj_SelProducts02 AS SELECT
+  ProductReviews_1.Rating,
+  Products_0.Name,
+  sum(Products_0.Price) AS TotalPrice
+FROM (com_famj_Products AS Products_0 LEFT JOIN com_famj_ProductReviews AS ProductReviews_1 ON Products_0.Name = ProductReviews_1.Name)
+GROUP BY ProductReviews_1.Rating, Products_0.Name
+ORDER BY Rating;
+
+CREATE VIEW com_famj_ProjProducts AS SELECT
+  Products_0.ID,
+  Products_0.Name,
+  Products_0.Description,
+  Products_0.ImageUrl,
+  Products_0.ReleaseDate,
+  Products_0.DiscontinuedDate,
+  Products_0.Price,
+  Products_0.Height,
+  Products_0.Width,
+  Products_0.Depth,
+  Products_0.Quantity,
+  Products_0.Supplier_Id,
+  Products_0.PriceCondition,
+  Products_0.PriceDetermination
+FROM com_famj_Products AS Products_0;
+
+CREATE VIEW com_famj_ProjProducts01 AS SELECT
+  SelProducts01_0.Name,
+  SelProducts01_0.Description,
+  SelProducts01_0.Price
+FROM com_famj_SelProducts01 AS SelProducts01_0;
+
