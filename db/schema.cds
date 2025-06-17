@@ -1,37 +1,23 @@
-//Comandos
-//cds db/schema.cds -2 sql > DDL_Script
-
 namespace com.famj;
 
-//Definir tipos Personalizados
-define type Name : String(20); //Tipo Personalizado
+//====================================================================
+//                         Aspectos Comunes y Tipos
+//====================================================================
 
-//Tipo Enumeraciones
-// type Gender      : String enum {
-//     male;
-//     female;
-// };
+// Importar aspectos comunes: cuid (UUID) y managed (timestamps, createdBy, etc.)
+using {
+    cuid,
+    managed
+} from '@sap/cds/common';
 
-// entity Order {
-//     clientGender : Gender;
-//     status       : Integer enum {
-//         submitted = 1;
-//         fulfiller = 2;
-//         shipped = 3;
-//         cancel = -1;
-//     };
-//     priority     : String @assert.range enum {
-//         high;
-//         medium;
-//         low;
-//     }
-// }
+// Tipo personalizado: nombre corto de hasta 20 caracteres
+define type Name   : String(20);
+// Tipo personalizado para decimales
+type Dec           : Decimal(16, 2);
+// Tipo localizado reutilizable para nombres
+type LocalizedName : localized String;
 
-
-//Tipo Referencia
-type Dec         : Decimal(16, 2);
-
-//Tipos Estructurados
+// Tipo estructurado para direcciones postales
 define type Address {
     Street     : String;
     City       : String;
@@ -40,176 +26,159 @@ define type Address {
     Country    : String(3);
 };
 
-// //Tipo Matriz (Tabla interna)
-// type EmailAddress_01 : array of {
-//     kind  : String;
-//     Email : String;
-// };
+context materials {
 
-// type EmailAddress_02 : many {
-//     kind  : String;
-//     Email : String;
-// };
+    //=========================================================
+    //                     Entidad Products
+    //=========================================================
+    entity Products : cuid, managed {
+        Name              : LocalizedName; // Nombre localizado
+        Description       : localized String not null; // Descripción obligatoria
+        ImageUrl          : String; // URL de la imagen
+        ReleaseDate       : DateTime default $now; // Fecha de lanzamiento por defecto
+        DiscontinuedDate  : DateTime; // Fecha de descontinuación
+        Price             : Dec; // Precio
+        Height            : type of Price; // Altura (referencia al tipo Price)
+        Width             : Decimal(16, 2); // Ancho
+        Depth             : Decimal(16, 2); // Profundidad
+        Quantity          : Decimal(16, 2); // Cantidad disponible
 
-// //Definir entidad
-// entity Emails {
-//     Email_01 : EmailAddress_01;
-//     Email_02 : EmailAddress_02;
-// }
+        // Asociaciones Administradas (clave foránea implícita)
+        Supplier          : Association to one Sales.Suppliers;
+        UnitOfMeasure     : Association to UnitOfMeasures;
+        Currency          : Association to Currencies;
+        DimensionUnit     : Association to DimensionUnit;
+        Category          : Association to Categories;
+        StockAvailability : Association to StockAvailability;
 
+        // Asociaciones a múltiples registros
+        SalesData         : Association to many Sales.SalesData
+                                on SalesData.Product = $self;
+        Reviews           : Association to many ProductReviews
+                                on Reviews.Product = $self;
+    };
 
-//Abstracta : No se representa a base de Datos
-entity Products {
-    key ID               : UUID;
-        Name             : String; //default "NoName";  // Valor Predeterminado
-        Description      : String not null; //Restricción
-        ImageUrl         : String;
-        ReleaseDate      : DateTime default $now; // Valor Predeterminado
-        DiscontinuedDate : DateTime;
-        Price            : Dec;
-        Height           : type of Price; // Tipo de Referencia
-        Width            : Decimal(16, 2);
-        Depth            : Decimal(16, 2);
-        Quantity         : Decimal(16, 2);
-        //*********************************************************************************************************************************************************************************************************
-        // Asociaciones No Administradas
-        // Supplier_Id      : UUID;
-        // ToSupplier       : Association to one Suppliers
-        //                        on ToSupplier.ID = Supplier_Id; //No administrada
-        // UnitOfMeasure_Id : String(2);
-        // ToUnitOfMeasure  : Association to UnitOfMeasures
-        //                        on ToUnitOfMeasure.ID = UnitOfMeasure_Id;
-        //*********************************************************************************************************************************************************************************************************
-        //Asociaciones Administradas
-        Supplier         : Association to one Suppliers; //Asociación Administrada
-        UnitOfMeasure    : Association to UnitOfMeasures; //Asociación Administrada
-        Currency         : Association to Currencies; //Asociación Administrada
-        DimensionUnit    : Association to DimensionUnit; //Asociación Administrada
-        Category         : Association to Categories; //Asociación Administrada
-        //*********************************************************************************************************************************************************************************************************
-        //Asociaciones Many
-        SalesData        : Association to many SalesData
-                               on SalesData.Product = $self;
-        Reviews          : Association to many ProductReviews
-                               on Reviews.Product = $self;
+    // Extensión a Products con campos adicionales
+    extend Products with {
+        PriceCondition     : String(2); // Condición de precio
+        PriceDetermination : String(3); // Determinación de precio
+    };
 
+    //=========================================================
+    //           Otras Entidades de Soporte en materials
+    //=========================================================
 
-};
+    entity Categories : managed {
+        key ID   : String(1);
+            Name : localized String; // Nombre de la categoría
+    };
 
-entity Suppliers {
+    entity StockAvailability : managed {
+        key ID          : Integer;
+            Description : localized String;
+            Product     : Association to Products;
+    };
 
-    key ID      : UUID;
-        Name    : Products : Name; // Tipo de Referencia
+    entity Currencies : managed {
+        key ID          : String(3);
+            Description : localized String;
+    };
+
+    entity UnitOfMeasures : managed {
+        key ID          : String(2);
+            Description : localized String;
+    };
+
+    entity DimensionUnit : managed {
+        key ID          : String(2);
+            Description : localized String;
+    };
+
+    entity ProductReviews : cuid, managed {
+        Name    : String;
+        Rating  : Integer;
+        Comment : String;
+        Product : Association to Products; // Relación a producto reseñado
+    };
+
+    // Proyecciones (vistas CDS)
+    entity SelProducts    as select from Products;
+    entity ProjProducts   as projection on Products;
+
+    entity ProjProducts01 as
+        projection on SelProducts01 {
+            Name,
+            Description,
+            Price,
+        };
+}
+
+context Sales {
+
+    entity Orders : cuid {
+        Date     : Date; // Fecha de orden
+        Customer : String; // Nombre o ID del cliente
+
+        // Composición: relación fuerte a los ítems de la orden
+        Item     : Composition of many OrdersItems
+                       on Item.Order = $self;
+    }
+
+    entity OrdersItems : cuid {
+        Order    : Association to Orders;
+        Product  : Association to materials.Products;
+        Quantity : Integer;
+    }
+
+    entity Suppliers : cuid, managed {
+        Name    : LocalizedName; // Nombre del proveedor
         Address : Address;
         Email   : String;
         Phone   : String;
         Fax     : String;
-        Product : Association to many Products
+
+        // Relación a productos del proveedor
+        Product : Association to many materials.Products
                       on Product.Supplier = $self;
-};
+    };
 
-// entity Suppliers_01 {
+    entity Months : managed {
+        key ID               : String(2);
+            Description      : localized String;
+            ShortDescription : localized String(3);
+    };
 
-//     key ID      : UUID;
-//         Name    : String;
-//         Address : Address;
-//         Email   : String;
-//         Phone   : String;
-//         Fax     : String;
-// };
-
-// entity Suppliers_02 {
-
-//     key ID      : UUID;
-//         Name    : String;
-//         Address : {
-//             Street     : String;
-//             City       : String;
-//             State      : String(2);
-//             PostalCode : String(5);
-//             Country    : String(3);
-//         };
-//         Email   : String;
-//         Phone   : String;
-//         Fax     : String;
-// };
-
-
-entity Categories {
-    key ID   : String(1);
-        Name : String;
-};
-
-entity StockAvailability {
-    key ID          : Integer;
-        Description : String;
-}
-
-entity Currencies {
-    key ID          : String(3);
-        Description : String;
-};
-
-entity UnitOfMeasures {
-    key ID          : String(2);
-        Description : String;
-}
-
-entity DimensionUnit {
-
-    key ID          : String(2);
-        Description : String;
-};
-
-entity Months {
-    key ID               : String(2);
-        Description      : String;
-        ShortDescription : String(3);
-};
-
-entity ProductReviews {
-    key ID      : UUID;
-        Name    : String;
-        Rating  : Integer;
-        Comment : String;
-        Product : Association to Products; //Asociación Administrada
-};
-
-entity SalesData {
-    key ID           : UUID;
+    entity SalesData : cuid, managed {
         DeliveryDate : DateTime;
         Revenue      : Decimal(16, 2);
-        Product      : Association to Products; //Asociación Administrada
-        Currency     : Association to Currencies; //Asociación Administrada
-        DeliveryM    : Association to Months; //Asociación Administrada
+        Product      : Association to materials.Products;
+        Currency     : Association to materials.Currencies;
+        DeliveryM    : Association to Months;
+    };
 }
 
-//Campos Virtuales
-entity car {
-    key     ID          : UUID;
+// Entidad con campos virtuales (solo en memoria)
+entity car : cuid, managed {
             Name        : String;
-    virtual discount_01 : Decimal @Core.Computed: false; //Permite enviar valores desde el cliente
+            // Campo virtual que puede ser enviado desde cliente
+    virtual discount_01 : Decimal @Core.Computed: false;
+            // Campo virtual solo de lectura
     virtual discount_02 : Decimal;
 }
 
-//*********************************************************************************************************************************************************************************************************
-//                                                    Entidades Select
-//*********************************************************************************************************************************************************************************************************
-
-entity SelProducts    as select from Products;
-
-entity SelProducts01  as
-    select from Products {
+// Vista CDS simple sobre Products
+entity SelProducts01 as
+    select from materials.Products {
         Name,
         Description,
         Quantity,
         Price,
     };
 
-//Inner
-entity SelProducts02  as
-    select from Products
-    left join ProductReviews
+// Vista CDS con join y agregación
+entity SelProducts02 as
+    select from materials.Products
+    left join materials.ProductReviews
         on Products.Name = ProductReviews.Name
     {
         Rating,
@@ -222,94 +191,45 @@ entity SelProducts02  as
     order by
         Rating;
 
-//*********************************************************************************************************************************************************************************************************
-//                                                    Vista de Projection
-//*********************************************************************************************************************************************************************************************************
-
-entity ProjProducts   as projection on Products;
-
-entity ProjProducts01 as
-    projection on SelProducts01 {
-        Name,
-        Description,
-        Price,
-    };
-
-//*********************************************************************************************************************************************************************************************************
-//                                                    Entity with Parameters
-//*********************************************************************************************************************************************************************************************************
-
-// entity ParamProducts(pName : String) as
-//     select from Products {
-//         Name,
-//         Description,
-//         Quantity,
-//         Price
-//     }
-//     where Name = :pName;
-
-// //Parametro en Entidad Projection
-
-// entity ParamProjProducts(pName : String) as projection on Products where Name = :pName;
+context reports {
+    //=========================================================
+    //                       Agrupaciones
+    //=========================================================
+    entity AvarageRating as
+        select from famj.materials.ProductReviews {
+            Product.ID  as ProductId,
+            avg(Rating) as AvarageRating : Decimal(16, 2) //Casting Columna
+        }
+        group by
+            Product.ID;
 
 
-//*********************************************************************************************************************************************************************************************************
-//                                                    Entity de Ampliación
-//*********************************************************************************************************************************************************************************************************
-
-//Amplia tabla Products
-extend Products with {
-    PriceCondition     : String(2);
-    PriceDetermination : String(3);
-}
-
-//*********************************************************************************************************************************************************************************************************
-//Asociaciones Many to Many
-//*********************************************************************************************************************************************************************************************************
-
-entity Course {
-    key ID      : UUID;
-        Student : Association to many StudentCourse
-                      on Student.Course = $self;
-}
-
-entity Student {
-    key ID     : UUID;
-        Course : Association to many StudentCourse
-                     on Course.Student = $self;
-}
-
-entity StudentCourse {
-    key ID      : UUID;
-        Student : Association to Student;
-        Course  : Association to Course;
-
-}
-
-//*********************************************************************************************************************************************************************************************************
-//Composición
-//*********************************************************************************************************************************************************************************************************
-
-entity Orders {
-    key ID       : UUID;
-        Date     : Date;
-        Customer : String;
-
-        //Composition
-        Item     : Composition of many OrdersItems
-                       on Item.Order = $self;
-// Item     : Composition of many {
-//                key Position : String(3);
-//                    Order    : Association to Orders;
-//                    Product  : Association to Products;
-//                    Quantity : Integer;
-//            }
-}
-
-entity OrdersItems {
-    key ID       : UUID;
-        Order    : Association to Orders;
-        Product  : Association to Products;
-        Quantity : Integer;
-
+    //=========================================================
+    //        Mixin Asociaciones no Administradas
+    //=========================================================
+    entity Products      as
+        select from famj.materials.Products
+        mixin {
+            ToStockAvailability : Association to famj.materials.StockAvailability
+                                      on ToStockAvailability.ID = $projection.StockAvailability;
+            ToAverageRating     : Association to AvarageRating
+                                      on ToAverageRating.ProductId = ID;
+        }
+        into {
+            *,
+            ToAverageRating.AvarageRating as Rating,
+            case
+                when
+                    Quantity >= 8
+                then
+                    3
+                when
+                    Quantity > 0
+                then
+                    2
+                else
+                    1
+            end                           as StockAvailability : Integer,
+            ToStockAvailability
+        }
 }

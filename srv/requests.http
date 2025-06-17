@@ -1,0 +1,6 @@
+### Get Orders 
+GET http://localhost:4004/odata/v4/manage-orders/GetOrders
+
+### Get Orders With Filter
+GET http://localhost:4004/odata/v4/manage-orders/GetOrders(ClientEmail='client1@client1.com')
+
