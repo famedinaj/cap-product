@@ -23,7 +23,14 @@ module.exports = (srv) => {
         }
     });
 
+    // Hook AFTER que se ejecuta después de una operación READ sobre la función "GetOrders"
     srv.after("READ", "GetOrders", (data) => {
-        return data.map((order) => (order.Reviewed = true));
+
+        // Recorre cada objeto del array de órdenes recibido
+        // y agrega (o modifica) la propiedad "Reviewed" poniéndola en true
+        // IMPORTANTE: se debe retornar el objeto completo, no solo el valor asignado
+        return data.map((order) => (
+            order.Reviewed = true)); // Marca la orden como revisada
+
     });
 };
